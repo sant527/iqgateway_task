@@ -1,0 +1,25 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+django = "==3.1"
+snoop = "*"
+djangorestframework = "*"
+dj_rest_auth = "*"
+psycopg2 = "*"
+requests = "*"
+django-cors-headers = "*"
+celery = "*"
+redis = "*"
+
+[dev-packages]
+django-extensions = "*"
+ipython = "*"
+jupyter = "*"
+django-request-logging = "*"
+werkzeug = "*"
+
+[requires]
+python_version = "3.9"

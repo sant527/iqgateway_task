@@ -1,0 +1,240 @@
+# My version of docker = 18.09.4-ce
+# Compose file format supported till version 18.06.0+ is 3.7
+version: "3.7"
+services:
+  nginx:
+    image: nginx:1.18.0-alpine
+    ports:
+      - 8028:80
+    volumes:
+      - ./nginx/localhost/nginx/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - webapp
+      - jupyter
+      - fastapi
+      - phppgadmin
+      - postgresql2
+      - postgresql
+      - phppgadmin2
+    networks:
+      - nginx_network
+
+  postgresql:
+    image: "postgres:13-alpine"
+    restart: always
+    volumes:
+      - type: bind
+        source: ../DO_NOT_DELETE_POSTGRESQL_DATA
+        target: /var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: gauranga
+      POSTGRES_USER: simha
+      POSTGRES_PASSWORD: krishna
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    networks:
+      - postgresql_network
+      - nginx_network
+
+  phppgadmin:
+    image: "bitnami/phppgadmin:7.13.0"
+    environment:
+      DATABASE_HOST: "postgresql"
+      DATABASE_SSL_MODE: "disable"
+    networks:
+      - nginx_network
+      - postgresql_network
+
+  postgresql2:
+    image: "postgres:13-alpine"
+    restart: always
+    volumes:
+      - type: bind
+        source: ../DO_NOT_DELETE_POSTGRESQL_DATA2
+        target: /var/lib/postgresql/data
+    ports:
+      - 58028:5432
+    environment:
+      POSTGRES_DB: gauranga
+      POSTGRES_USER: simha
+      POSTGRES_PASSWORD: krishna
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    networks:
+      - postgresql_network
+      - nginx_network
+
+  phppgadmin2:
+    image: "bitnami/phppgadmin:7.13.0"
+    environment:
+      DATABASE_HOST: "postgresql2"
+      DATABASE_SSL_MODE: "disable"
+    networks:
+      - nginx_network
+      - postgresql_network
+
+  fastapi:
+    image: "python3.9-nodejs16-buster:nikolaik-python3.9-nodejs16"
+    volumes:
+      - type: bind
+        source: ../DO_NOT_DELETE_CODING/flask_micro_service
+        target: /home/simha/app
+    command:
+      - sh
+      - -c
+      - |
+        cd src
+        pipenv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
+    depends_on:
+      - postgresql
+      - celery_worker
+    extra_hosts: # https://stackoverflow.com/a/43541732/2897115 (access host from docker container)
+      - "localhost:host-gateway"
+    stdin_open: true # Add this line into your service
+    tty: true # Add this line into your service
+    networks:
+      - postgresql_network
+      - nginx_network
+
+  redis:
+    image: "redis:5.0.9-alpine3.11"
+    command: redis-server
+    environment:
+      - REDIS_REPLICATION_MODE=master
+    networks: # connect to the bridge
+      - redis_network
+
+  celery_worker:
+    image: "python3.9-nodejs16-buster:nikolaik-python3.9-nodejs16"
+    environment:
+      - SQLPRINT=1
+      - DEBUG=1
+    volumes:
+      - type: bind
+        source: ../DO_NOT_DELETE_CODING/django_main_server
+        target: /home/simha/app
+      ############################## ********** APP SPECIFIC  ******** #########################
+      # ensure external_config folder exists on host else it will create folder with root:root on the host
+      # but on the docker it will be created using simha:users
+      - type: bind
+        source: ./python_django/Django_external_config
+        target: /home/simha/app/src/project_settings/external_config
+    command:
+      - sh
+      - -c
+      - |
+        cd src
+        pipenv run celery -A project_settings worker --loglevel=debug #ensure redis-server is running in root and change backed to respective
+    depends_on: # wait for postgresql, redis to be "ready" before starting this service
+      - redis
+      - postgresql
+    extra_hosts: # https://stackoverflow.com/a/43541732/2897115 (access host from docker container)
+      - "host.docker.internal:host-gateway"
+      - "fast.host.docker.internal:host-gateway"
+    networks: # connect to the bridge
+      - redis_network
+      - postgresql_network
+
+  webapp:
+    image: "python3.9-nodejs16-buster:nikolaik-python3.9-nodejs16"
+    environment:
+      - SQLPRINT=1
+      - DEBUG=1
+      - WERKZEUG_DEBUG_PIN=off
+      - PYTHONBREAKPOINT=ipdb.set_trace
+    volumes:
+      - type: bind
+        source: ../DO_NOT_DELETE_CODING/django_main_server
+        target: /home/simha/app
+      ############################## ********** APP SPECIFIC  ******** #########################
+      # ensure external_config folder exists on host else it will create folder with root:root on the host
+      # but on the docker it will be created using simha:users
+      - type: bind
+        source: ./python_django/Django_external_config
+        target: /home/simha/app/src/project_settings/external_config
+    command:
+      - sh
+      - -c
+      - |
+        cd src
+        pipenv run python manage.py runserver_plus 0.0.0.0:8000
+    depends_on:
+      - postgresql
+      - celery_worker
+    extra_hosts: # https://stackoverflow.com/a/43541732/2897115 (access host from docker container)
+      - "host.docker.internal:host-gateway"
+      - "fast.host.docker.internal:host-gateway"
+    stdin_open: true # Add this line into your service
+    tty: true # Add this line into your service
+    networks:
+      - postgresql_network
+      - nginx_network
+      - redis_network
+
+  jupyter:
+    image: "python3.9-nodejs16-buster:nikolaik-python3.9-nodejs16"
+    environment:
+      - SQLPRINT=1
+      - JUPYTER_PASS=1
+      - DEBUG=1
+      - PYTHONBREAKPOINT=ipdb.set_trace
+    volumes:
+      - type: bind
+        source: ../DO_NOT_DELETE_CODING/django_main_server
+        target: /home/simha/app
+      - type: bind
+        source: ./python_django/jupyter/.jupyter
+        target: /home/simha/.jupyter
+        # ensure jupyter_related folder exists on host else it will create folder with root:root on the host
+        # but on the docker it will be created using simha:users
+      - type: bind
+        source: ../DO_NOT_DELETE_JUPYTER_NOTEBOOKS
+        target: /home/simha/app/src/jupyter_related
+      ############################## ********** APP SPECIFIC  ******** #########################
+      # ensure external_config folder exists on host else it will create folder with root:root on the host
+      # but on the docker it will be created using simha:users
+      - type: bind
+        source: ./python_django/Django_external_config
+        target: /home/simha/app/src/project_settings/external_config
+    extra_hosts: # https://stackoverflow.com/a/43541732/2897115 (access host from docker container)
+      - "host.docker.internal:host-gateway"
+      - "fast.host.docker.internal:host-gateway"
+    depends_on:
+      - postgresql
+      - celery_worker
+    command:
+      - sh
+      - -c
+      - |
+        cd src
+        pipenv run python manage.py shell_plus --notebook
+    networks:
+      - postgresql_network
+      - nginx_network
+      - redis_network
+
+  node:
+    image: "python3.9-nodejs16-buster:nikolaik-python3.9-nodejs16"
+    volumes:
+      - type: bind
+        source: ../DO_NOT_DELETE_CODING/frontend_reactjs
+        target: /home/simha/app
+    depends_on: # wait for celery, postgresql, redis to be "ready" before starting this service
+      - webapp
+    networks:
+      - nginx_network
+    ports:
+      - "3028:3000"
+    stdin_open: true #https://stackoverflow.com/a/60902143/2897115
+    command:
+      - sh
+      - -c
+      - |
+        cd my-app
+        npm start
+
+networks:
+  postgresql_network:
+    driver: bridge
+  redis_network:
+    driver: bridge
+  nginx_network:
+    driver: bridge
