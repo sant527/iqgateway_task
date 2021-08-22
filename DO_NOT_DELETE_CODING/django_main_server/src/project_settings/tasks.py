@@ -31,17 +31,10 @@ def debug_task(dbhost,dbname,username,passwd,table,user_id):
             params=data
         )
         r.raise_for_status()
-        print(r.content)
-        buff = io.StringIO(r.text)
-        dr = csv.DictReader(buff)
-        for row in dr:
-            print(row)
-        filename = f"{uuid.uuid4().hex}.csv"
-        with open(os.path.join("/home/simha/app/src/media/csv_files/", filename), 'wb') as f:
-            f.write(r.content)
+        data = r.json()
 
         user = User.objects.get(id=user_id)
-        user.data_file_name = filename
+        user.data_file_name = data["filename"]
         user.save()
 
     except requests.exceptions.HTTPError as errh:

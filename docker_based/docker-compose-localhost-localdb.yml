@@ -77,6 +77,9 @@ services:
       - type: bind
         source: ../DO_NOT_DELETE_CODING/flask_micro_service
         target: /home/simha/app
+      - type: bind
+        source: ../DO_NOT_DELETE_CSV_FILES
+        target: /home/simha/app/src/media/csv_files
     command:
       - sh
       - -c
@@ -111,6 +114,9 @@ services:
       - type: bind
         source: ../DO_NOT_DELETE_CODING/django_main_server
         target: /home/simha/app
+      - type: bind
+        source: ../DO_NOT_DELETE_CSV_FILES
+        target: /home/simha/app/src/media/csv_files
       ############################## ********** APP SPECIFIC  ******** #########################
       # ensure external_config folder exists on host else it will create folder with root:root on the host
       # but on the docker it will be created using simha:users
@@ -144,6 +150,9 @@ services:
       - type: bind
         source: ../DO_NOT_DELETE_CODING/django_main_server
         target: /home/simha/app
+      - type: bind
+        source: ../DO_NOT_DELETE_CSV_FILES
+        target: /home/simha/app/src/media/csv_files
       ############################## ********** APP SPECIFIC  ******** #########################
       # ensure external_config folder exists on host else it will create folder with root:root on the host
       # but on the docker it will be created using simha:users
@@ -183,6 +192,9 @@ services:
       - type: bind
         source: ./python_django/jupyter/.jupyter
         target: /home/simha/.jupyter
+      - type: bind
+        source: ../DO_NOT_DELETE_CSV_FILES
+        target: /home/simha/app/src/media/csv_files
         # ensure jupyter_related folder exists on host else it will create folder with root:root on the host
         # but on the docker it will be created using simha:users
       - type: bind
