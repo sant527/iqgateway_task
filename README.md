@@ -1,7 +1,7 @@
 # Create a docker image (python3.9 + node 16)
 
 ```bash
-cd docker_based/Dockerbuild_node16_python3.9/Dockerfile_node_python_buster
+cd docker_based/Dockerbuild_node16_python3.9/
 docker build -t python3.9-nodejs16-buster:nikolaik-python3.9-nodejs16 --file Dockerfile_node_python_buster .
 ```
 
